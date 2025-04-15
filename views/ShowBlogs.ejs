@@ -93,7 +93,7 @@
       <div class="blog-card">
         <h3><%= blog.title %></h3>
         <p><%= blog.content.substring(0, 100) %>...</p> <!-- Show a short snippet of the blog content -->
-        <a href="/blog/<%= blog._id %>">Read More</a> <!-- Link to individual blog page -->
+        <a href="/blog/<%= blog.id %>">Read More</a> <!-- Link to individual blog page -->
       </div>
     <% }); %>
   </section>

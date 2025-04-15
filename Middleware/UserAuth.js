@@ -1,13 +1,14 @@
 const jwt = require('jsonwebtoken')
-
-const authMiddleware = (req ,res, next) =>{
+const loadEnv = require('../loadEnv');
+const { configDotenv } = require('dotenv');
+const authMiddleware = async (req ,res, next) =>{
     const token = req.cookies.token;
-    
+    const ConfigEnv = await loadEnv()
     if (!token){
         return res.redirect('/user/login')
     }
     try {
-        const decocded = jwt.verify(token , process.env.JWT_SECRET)
+        const decocded = jwt.verify(token , ConfigEnv.JWT_SECRET)
         req.user = decocded
         next()
 
@@ -17,14 +18,16 @@ const authMiddleware = (req ,res, next) =>{
     }
 }
 
-const authMiddlewareForAddBlog = (req ,res, next) =>{
+const authMiddlewareForAddBlog = async(req ,res, next) =>{
     const token = req.cookies.token;
+
+    const ConfigEnv = await loadEnv()
     
     if (!token){
         return res.redirect('/user/login')
     }
     try {
-        const decocded = jwt.verify(token , process.env.JWT_SECRET)
+        const decocded = jwt.verify(token , ConfigEnv.JWT_SECRET)
         req.user = decocded
         next()
 

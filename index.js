@@ -1,113 +1,84 @@
-const express = require('express')
-const app = express()
-app.use(express.json())
-const path = require('path')
-app.use(express.urlencoded({extended:false}))
+const express = require('express');
+const app = express();
+const path = require('path');
 const cookieParser = require('cookie-parser');
-const multer = require('multer')
-app.use(cookieParser());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const multer = require('multer');
+const loadEnv = require('./loadEnv');
+const { initDB } = require('./sqldb');
 
+// Step 1: Load env and init DB
+loadEnv().then(async (envConfig) => {
+  await initDB(envConfig); // Now sequelize is initialized
 
+  // Now we can safely load models and routes
+  const BlogModel = require('./Models/BlogModel');
+  const UserModel = require('./Models/User');
+  const UserRouter = require('./Routes/signupRoute');
+  const LoginRoute = require('./Routes/Login');
+  const HomeRoute = require('./Routes/HomeRoute');
+  const { authMiddleware, authMiddlewareForAddBlog } = require('./Middleware/UserAuth');
 
-const dotenv = require('dotenv')
-dotenv.config()
-const  UserRouter  = require('./Routes/signupRoute')
+  // Express setup
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
+  app.use(cookieParser());
+  app.use(express.static('public'));
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+  app.set('view engine', 'ejs');
+  app.set('views', path.resolve('./views'));
 
-const { ConnectMongoDB} = require('./ConnectMongo')
-const { LoginRoute} = require('./Routes/Login')
-const HomeRoute = require('./Routes/HomeRoute')
-const {authMiddleware,authMiddlewareForAddBlog} = require('./Middleware/UserAuth')
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, './uploads'),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+  });
 
+  const upload = multer({ storage });
 
-app.use(express.static('public'));
+  // Routes
+  app.get('/addblog', authMiddlewareForAddBlog, (req, res) => {
+    res.render('add-blogs');
+  });
 
-app.set('view engine' , 'ejs')
-app.set('views' , path.resolve('./views'))
-const PORT = process.env.PORT || 8000
-const BlogModel = require('./Models/BlogModel');
-
-
-
-
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, './uploads'); // make sure 'uploads' folder exists
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, uniqueSuffix + '-' + file.originalname);
+  app.post('/addblog', upload.single('coverImage'), async (req, res) => {
+    try {
+      const { title, content } = req.body;
+      const coverImage = req.file ? req.file.filename : null;
+      await BlogModel.create({ title, content, coverImage });
+      res.redirect('/show/blogs');
+    } catch (err) {
+      console.error('Error creating blog:', err);
+      res.status(500).send('Internal Server Error');
     }
   });
-  
-  // Create upload middleware
-  const upload = multer({ storage: storage });
-app.get('/addblog' , authMiddlewareForAddBlog , (req ,res)=>{
-    res.render('add-blogs')
 
-})
-app.post('/addblog', upload.single('coverImage'), async (req, res) => {
-    const { title, content } = req.body;
-    const coverImage = req.file ? req.file.filename : null;
-
+  app.get('/blog/:id', async (req, res) => {
     try {
-        const BlogCreated = await BlogModel.create({
-            title,
-            content,
-            coverImage, // Make sure your BlogModel supports this field
-        });
-
-        res.redirect('/show/blogs');
-    } catch (error) {
-        console.error('Error creating blog:', error);
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-
-app.get('/blog/:id', async (req, res) => {
-    try {
-      const blog = await BlogModel.findById(req.params.id);
-      if (!blog) {
-        return res.status(404).send('Blog not found');
-      }
+      const blog = await BlogModel.findByPk(req.params.id);
+      if (!blog) return res.status(404).send('Blog not found');
       res.render('blog-detail', { blog });
     } catch (err) {
       console.error('Error fetching blog:', err);
       res.status(500).send('Error loading blog');
     }
   });
-  
 
-
-app.get('/show/blogs', async (req, res) => {
+  app.get('/show/blogs', async (req, res) => {
     try {
-      const blogs = await BlogModel.find() // Get blogs in descending order by creation date
-      res.render('showBlogs', { blogs });  // Render the 'blogs.ejs' page with the blogs data
+      const blogs = await BlogModel.findAll();
+      res.render('showBlogs', { blogs });
     } catch (err) {
       console.error('Error fetching blogs:', err);
       res.status(500).send('Error loading blogs');
     }
   });
-  
 
-// Storage config: where to save uploaded files
+  // User routes
+  app.use('/user', UserRouter);
+  app.use('/home', authMiddleware, HomeRoute);
 
+  // Home
+  app.get('/', (req, res) => res.render('FrontendPage'));
 
-
-
-app.use('/user' , UserRouter )
-
-
-
-
-
-app.use('/home' , authMiddleware, HomeRoute )
-
-
-app.get('/' , (req ,res)=>{
-    res.render('FrontendPage')
-})
-
-ConnectMongoDB(process.env.MONGODBURL)
-app.listen(PORT , ()=> console.log(`SERVER IS RUNNING ON PORT ${PORT}`))
+  const PORT = envConfig.PORT || 8000;
+  app.listen(PORT, () => console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`));
+});

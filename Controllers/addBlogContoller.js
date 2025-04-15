@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-const BlogModel = require('../Models/BlogModel');
+const { BlogModel } = require('../Models/BlogModel'); // ensure this exports correctly
 
 const StoreBlogInfo = async (req, res) => {
   try {
@@ -9,10 +8,11 @@ const StoreBlogInfo = async (req, res) => {
     const BlogCreated = await BlogModel.create({
       title,
       content,
+      coverImage,
     });
 
     console.log('Blog Created:', BlogCreated);
-    res.redirect('/'); // or wherever you want to go after blog creation
+    res.redirect('/');
   } catch (err) {
     console.error('Error storing blog:', err);
     res.status(500).send('Server Error');
