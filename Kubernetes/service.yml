@@ -1,11 +1,11 @@
-apiVersion: apps/v1
+apiVersion: v1
 kind: Service
 metadata:
   name: serviceexpose
 spec: 
   type: LoadBalancer
   selector:
-    apps: blogwebdeployment
+    app: blogwebdeployment   
   ports:
     - port: 80
       targetPort: 80
