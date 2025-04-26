@@ -3,22 +3,19 @@ kind: Deployment
 metadata:
   name: blogwebdeployment
   labels:
-    apps: blogwebdeployment
+    app: blogwebdeployment
 spec:
   replicas: 1
   selector:
     matchLabels:
-      apps: blogwebdeployment
+      app: blogwebdeployment
   template:
     metadata:
       labels:
-        apps: blogwebdeployment
+        app: blogwebdeployment
     spec:
       containers:
       - name: my-container
         image: nginx:latest
         ports: 
           - containerPort: 80
-        
-
-        
